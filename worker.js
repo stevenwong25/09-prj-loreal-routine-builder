@@ -59,8 +59,9 @@ export default {
         body: JSON.stringify({
           model: "gpt-5.2",
           intructions: systemMessage,
+          reasoning: {effort: medium},
           store: false,
-          tools: [{type: "web_search"}],
+          tools: [{type: "web_search", search_context_size: "medium"}],
           max_output_tokens: 800,
           input: messages,
         }),
