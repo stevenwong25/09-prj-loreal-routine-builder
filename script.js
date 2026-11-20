@@ -15,7 +15,6 @@ const workerUrl = "https://loreal-routine-bot.wsteven446.workers.dev/";
 let allProducts = [];
 const selectedProductsKey = "lorealSelectedProductIds";
 let isRequestInProgress = false;
-let routineReady = false;
 
 /* Add a message bubble to the text conversation */
 function addChatMessage(text, sender) {
@@ -39,7 +38,7 @@ function addChatMessage(text, sender) {
 
 /* Show the first assistant message when the page loads */
 addChatMessage(
-  "Select products and generate a routine to get started.",
+  "Select products and generate a routine, or start a conversation to get started.",
   "assistant"
 );
 
@@ -72,10 +71,6 @@ directionObserver.observe(document.documentElement, {
   attributeFilter: ["lang", "class"],
 });
 
-// Keep chat disabled until a routine has been generated
-userInput.disabled = true;
-sendButton.disabled = true;
-
 /* Disable controls while the AI is generating a routine or reply */
 function setBusyControls(isBusy) {
   isRequestInProgress = isBusy;
@@ -84,8 +79,6 @@ function setBusyControls(isBusy) {
   clearSelectionButton.disabled = isBusy;
   generateRoutineButton.disabled =
     isBusy || selectedProducts.length === 0;
-  userInput.disabled = isBusy || !routineReady;
-  sendButton.disabled = isBusy || !routineReady;
 
   document.querySelectorAll(".remove-product").forEach((button) => {
     button.disabled = isBusy;
@@ -416,19 +409,10 @@ async function sendMessage(
     // Replace the loading bubble with the AI response
     loadingBubble.innerHTML = formatResponse(reply);
 
-    if (unlockChatWhenFinished) {
-      routineReady = true;
-    }
-
     setBusyControls(false);
   } catch (error) {
     messages.pop();
     loadingBubble.innerHTML = formatResponse(`Error: ${error.message}`);
-
-    if (unlockChatWhenFinished) {
-      routineReady = false;
-    }
-
     setBusyControls(false);
   }
 }

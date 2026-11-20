@@ -252,12 +252,6 @@ body {
   border-bottom-color: #000;
 }
 
-.chat-form input:disabled {
-  color: #777;
-  background: #eee;
-  cursor: not-allowed;
-}
-
 .chat-form button {
   font-size: 18px;
   background: #000;
@@ -275,13 +269,6 @@ body {
 
 .chat-form button:hover {
   background: #666666;
-}
-
-.chat-form button:disabled,
-.chat-form button:disabled:hover {
-  background: #ccc;
-  color: #666;
-  cursor: not-allowed;
 }
 
 .chat-form button:focus {
