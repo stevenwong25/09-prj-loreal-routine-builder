@@ -58,6 +58,12 @@ body {
   border-color: #666;
 }
 
+.search-section select:disabled {
+  background: #eee;
+  color: #777;
+  cursor: not-allowed;
+}
+
 /* chat section */
 .chatbox {
   margin: 40px 0;
@@ -75,7 +81,7 @@ body {
   padding: 20px;
   font-size: 18px;
   line-height: 1.5;
-  height: 250px;
+  height: 350px;
   overflow-y: auto;
   background: #fafafa;
   margin-bottom: 20px;
@@ -96,6 +102,12 @@ body {
 
 .chat-window em {
   font-style: italic;
+}
+
+.chat-window a {
+  color: #b00020;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
 }
 
 /* placeholder message */
@@ -126,6 +138,12 @@ body {
 .chat-form input:focus {
   outline: none;
   border-bottom-color: #000;
+}
+
+.chat-form input:disabled {
+  color: #777;
+  background: #eee;
+  cursor: not-allowed;
 }
 
 .chat-form button {
@@ -255,6 +273,14 @@ body {
   z-index: 0;
 }
 
+.product-card.busy,
+.product-card.busy:hover {
+  cursor: wait;
+  pointer-events: none;
+  transform: none;
+  z-index: 0;
+}
+
 .product-card.selected .product-description {
   display: none;
 }
@@ -318,6 +344,14 @@ body {
   background: #d32f2f;
 }
 
+.clear-selection:disabled,
+.clear-selection:disabled:hover {
+  color: #777;
+  border-color: #777;
+  background: transparent;
+  cursor: not-allowed;
+}
+
 #selectedProductsList {
   display: flex;
   flex-wrap: wrap;
@@ -363,6 +397,13 @@ body {
 .remove-product:hover {
   color: #a00000;
   transform: scale(1.2);
+}
+
+.remove-product:disabled,
+.remove-product:disabled:hover {
+  color: #777;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .generate-btn {

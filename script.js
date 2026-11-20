@@ -13,10 +13,31 @@ const messages = [];
 const workerUrl = "https://loreal-routine-bot.wsteven446.workers.dev/";
 let allProducts = [];
 const selectedProductsKey = "lorealSelectedProductIds";
+let isRequestInProgress = false;
+let routineReady = false;
 
 // Keep chat disabled until a routine has been generated
 userInput.disabled = true;
 sendButton.disabled = true;
+
+/* Disable controls while the AI is generating a routine or reply */
+function setBusyControls(isBusy) {
+  isRequestInProgress = isBusy;
+  categoryFilter.disabled = isBusy;
+  clearSelectionButton.disabled = isBusy;
+  generateRoutineButton.disabled =
+    isBusy || selectedProducts.length === 0;
+  userInput.disabled = isBusy || !routineReady;
+  sendButton.disabled = isBusy || !routineReady;
+
+  document.querySelectorAll(".remove-product").forEach((button) => {
+    button.disabled = isBusy;
+  });
+
+  document.querySelectorAll(".product-card").forEach((card) => {
+    card.classList.toggle("busy", isBusy);
+  });
+}
 
 /* Show initial placeholder until user selects a category */
 productsContainer.innerHTML = `
@@ -86,6 +107,10 @@ function displayProducts(products) {
   const productCards = document.querySelectorAll(".product-card");
   productCards.forEach((card) => {
     card.addEventListener("click", () => {
+      if (isRequestInProgress) {
+        return;
+      }
+
       // Selected products can only be removed with their X button
       if (card.classList.contains("selected")) {
         return;
@@ -99,6 +124,10 @@ function displayProducts(products) {
 
 /* Add or remove a product from the selected products list */
 function toggleSelectedProduct(productId) {
+  if (isRequestInProgress) {
+    return;
+  }
+
   const selectedIndex = selectedProducts.findIndex(
     (product) => product.id === productId
   );
@@ -128,7 +157,7 @@ function toggleSelectedProduct(productId) {
 /* Show selected products in the selected products container */
 function displaySelectedProducts() {
   clearSelectionButton.hidden = selectedProducts.length === 0;
-  generateRoutineButton.disabled = selectedProducts.length === 0;
+  setBusyControls(isRequestInProgress);
 
   if (selectedProducts.length === 0) {
     selectedProductsList.innerHTML = "";
@@ -163,6 +192,10 @@ function displaySelectedProducts() {
 
 /* Remove all products from the selected products list */
 clearSelectionButton.addEventListener("click", () => {
+  if (isRequestInProgress) {
+    return;
+  }
+
   selectedProducts.length = 0;
   saveSelectedProducts();
   displaySelectedProducts();
@@ -178,8 +211,27 @@ clearSelectionButton.addEventListener("click", () => {
 function formatResponse(text) {
   const escapeHtml = (value) =>
     value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const formatEmphasis = (value) => {
-    let formatted = value.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  const formatInline = (value) => {
+    let formatted = escapeHtml(value);
+
+    // Convert Markdown-style links: [label](https://example.com)
+    formatted = formatted.replace(
+      /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+    );
+
+    // Convert raw http or https URLs into clickable links
+    formatted = formatted.replace(
+      /(^|[^"'=])(https?:\/\/[^\s<]+)/g,
+      (match, prefix, url) => {
+        const punctuation = /[.,!?;:]+$/.exec(url);
+        const cleanUrl = punctuation ? url.slice(0, -punctuation[0].length) : url;
+        const ending = punctuation ? punctuation[0] : "";
+        return `${prefix}<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">${cleanUrl}</a>${ending}`;
+      }
+    );
+
+    formatted = formatted.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
     formatted = formatted.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
     return formatted;
   };
@@ -208,13 +260,13 @@ function formatResponse(text) {
       }
 
       const itemText = bulletMatch ? bulletMatch[1] : numberMatch[1];
-      formattedLines.push(`<li>${formatEmphasis(escapeHtml(itemText))}</li>`);
+      formattedLines.push(`<li>${formatInline(itemText)}</li>`);
       return;
     }
 
     closeList();
     if (line.trim()) {
-      formattedLines.push(`<p>${formatEmphasis(escapeHtml(line))}</p>`);
+      formattedLines.push(`<p>${formatInline(line)}</p>`);
     }
   });
 
@@ -223,9 +275,14 @@ function formatResponse(text) {
 }
 
 /* Send the conversation to the Cloudflare Worker */
-async function sendMessage(message, unlockChatWhenFinished = false) {
+async function sendMessage(
+  message,
+  unlockChatWhenFinished = false,
+  loadingMessage = "Thinking..."
+) {
+  setBusyControls(true);
   messages.push({ role: "user", content: message });
-  chatWindow.innerHTML = "Building your routine...";
+  chatWindow.innerHTML = loadingMessage;
 
   try {
     const response = await fetch(workerUrl, {
@@ -239,9 +296,16 @@ async function sendMessage(message, unlockChatWhenFinished = false) {
       throw new Error(data.error || "The AI could not complete the request.");
     }
 
+    // Web-search responses include extra output items before the message.
+    // Find the message item first instead of assuming it is output[0].
+    const messageOutput = data.output?.find(
+      (item) => item.type === "message"
+    );
     const reply =
       data.output_text ||
-      data.output?.[0]?.content?.[0]?.text ||
+      messageOutput?.content?.find(
+        (item) => item.type === "output_text"
+      )?.text ||
       "The AI did not return a response.";
     messages.push({ role: "assistant", content: reply });
 
@@ -252,23 +316,27 @@ async function sendMessage(message, unlockChatWhenFinished = false) {
     chatWindow.appendChild(responseMessage);
 
     if (unlockChatWhenFinished) {
-      userInput.disabled = false;
-      sendButton.disabled = false;
-      generateRoutineButton.disabled = selectedProducts.length === 0;
+      routineReady = true;
     }
+
+    setBusyControls(false);
   } catch (error) {
     messages.pop();
     chatWindow.innerHTML = `Error: ${error.message}`;
 
     if (unlockChatWhenFinished) {
-      generateRoutineButton.disabled = selectedProducts.length === 0;
+      routineReady = false;
     }
+
+    setBusyControls(false);
   }
 }
 
 /* Generate a routine using the selected products as AI context */
 generateRoutineButton.addEventListener("click", () => {
-  generateRoutineButton.disabled = true;
+  if (isRequestInProgress) {
+    return;
+  }
 
   const productContext = selectedProducts
     .map(
@@ -279,12 +347,17 @@ generateRoutineButton.addEventListener("click", () => {
 
   sendMessage(
     `Create a personalized routine using only these selected products:\n${productContext}`,
-    true
+    true,
+    "Building your routine..."
   );
 });
 
 /* Filter and display products when category changes */
 categoryFilter.addEventListener("change", async (e) => {
+  if (isRequestInProgress) {
+    return;
+  }
+
   // Show a loading message while the product data is being loaded
   productsContainer.innerHTML = `
     <div class="placeholder-message">
@@ -307,6 +380,10 @@ categoryFilter.addEventListener("change", async (e) => {
 /* Chat form submission handler */
 chatForm.addEventListener("submit", (e) => {
   e.preventDefault();
+
+  if (isRequestInProgress) {
+    return;
+  }
 
   const message = userInput.value.trim();
   if (!message) {
