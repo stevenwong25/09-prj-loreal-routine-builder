@@ -2,6 +2,7 @@
 const categoryFilter = document.getElementById("categoryFilter");
 const productsContainer = document.getElementById("productsContainer");
 const selectedProductsList = document.getElementById("selectedProductsList");
+const clearSelectionButton = document.getElementById("clearSelection");
 const chatForm = document.getElementById("chatForm");
 const chatWindow = document.getElementById("chatWindow");
 const selectedProducts = [];
@@ -38,6 +39,7 @@ function displayProducts(products) {
       <div class="product-info">
         <h3>${product.name}</h3>
         <p>${product.brand}</p>
+        <p class="product-description">${product.description}</p>
       </div>
     </div>
   `;
@@ -89,6 +91,8 @@ function toggleSelectedProduct(productId) {
 
 /* Show selected products in the selected products container */
 function displaySelectedProducts() {
+  clearSelectionButton.hidden = selectedProducts.length === 0;
+
   if (selectedProducts.length === 0) {
     selectedProductsList.innerHTML = "";
     return;
@@ -119,6 +123,18 @@ function displaySelectedProducts() {
     });
   });
 }
+
+/* Remove all products from the selected products list */
+clearSelectionButton.addEventListener("click", () => {
+  selectedProducts.length = 0;
+  displaySelectedProducts();
+
+  const selectedCategory = categoryFilter.value;
+  const filteredProducts = allProducts.filter(
+    (product) => product.category === selectedCategory
+  );
+  displayProducts(filteredProducts);
+});
 
 /* Filter and display products when category changes */
 categoryFilter.addEventListener("change", async (e) => {
