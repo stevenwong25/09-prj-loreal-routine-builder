@@ -49,6 +49,11 @@ function displayProducts(products) {
   const productCards = document.querySelectorAll(".product-card");
   productCards.forEach((card) => {
     card.addEventListener("click", () => {
+      // Selected products can only be removed with their X button
+      if (card.classList.contains("selected")) {
+        return;
+      }
+
       const productId = Number(card.dataset.id);
       toggleSelectedProduct(productId);
     });
@@ -98,15 +103,18 @@ function displaySelectedProducts() {
             <h3>${product.name}</h3>
             <p>${product.brand}</p>
           </div>
+          <button class="remove-product" type="button" aria-label="Remove ${product.name}">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
         </div>
       `
     )
     .join("");
 
-  const selectedCards = document.querySelectorAll(".selected-product-card");
-  selectedCards.forEach((card) => {
-    card.addEventListener("click", () => {
-      const productId = Number(card.dataset.id);
+  const removeButtons = document.querySelectorAll(".remove-product");
+  removeButtons.forEach((button) => {
+    button.addEventListener("click", () => {
+      const productId = Number(button.parentElement.dataset.id);
       toggleSelectedProduct(productId);
     });
   });
