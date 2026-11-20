@@ -3,10 +3,19 @@ const categoryFilter = document.getElementById("categoryFilter");
 const productsContainer = document.getElementById("productsContainer");
 const selectedProductsList = document.getElementById("selectedProductsList");
 const clearSelectionButton = document.getElementById("clearSelection");
+const generateRoutineButton = document.getElementById("generateRoutine");
 const chatForm = document.getElementById("chatForm");
 const chatWindow = document.getElementById("chatWindow");
+const userInput = document.getElementById("userInput");
+const sendButton = document.getElementById("sendBtn");
 const selectedProducts = [];
+const messages = [];
+const workerUrl = "https://loreal-routine-bot.wsteven446.workers.dev/";
 let allProducts = [];
+
+// Keep chat disabled until a routine has been generated
+userInput.disabled = true;
+sendButton.disabled = true;
 
 /* Show initial placeholder until user selects a category */
 productsContainer.innerHTML = `
@@ -92,6 +101,7 @@ function toggleSelectedProduct(productId) {
 /* Show selected products in the selected products container */
 function displaySelectedProducts() {
   clearSelectionButton.hidden = selectedProducts.length === 0;
+  generateRoutineButton.disabled = selectedProducts.length === 0;
 
   if (selectedProducts.length === 0) {
     selectedProductsList.innerHTML = "";
@@ -136,6 +146,67 @@ clearSelectionButton.addEventListener("click", () => {
   displayProducts(filteredProducts);
 });
 
+/* Send the conversation to the Cloudflare Worker */
+async function sendMessage(message, unlockChatWhenFinished = false) {
+  messages.push({ role: "user", content: message });
+  chatWindow.innerHTML = "Building your routine...";
+
+  try {
+    const response = await fetch(workerUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages }),
+    });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "The AI could not complete the request.");
+    }
+
+    const reply =
+      data.output_text ||
+      data.output?.[0]?.content?.[0]?.text ||
+      "The AI did not return a response.";
+    messages.push({ role: "assistant", content: reply });
+
+    // Display the AI response as text in the chat window
+    chatWindow.innerHTML = "";
+    const responseMessage = document.createElement("p");
+    responseMessage.textContent = reply;
+    chatWindow.appendChild(responseMessage);
+
+    if (unlockChatWhenFinished) {
+      userInput.disabled = false;
+      sendButton.disabled = false;
+      generateRoutineButton.disabled = selectedProducts.length === 0;
+    }
+  } catch (error) {
+    messages.pop();
+    chatWindow.innerHTML = `Error: ${error.message}`;
+
+    if (unlockChatWhenFinished) {
+      generateRoutineButton.disabled = selectedProducts.length === 0;
+    }
+  }
+}
+
+/* Generate a routine using the selected products as AI context */
+generateRoutineButton.addEventListener("click", () => {
+  generateRoutineButton.disabled = true;
+
+  const productContext = selectedProducts
+    .map(
+      (product) =>
+        `${product.name} by ${product.brand}: ${product.description}`
+    )
+    .join("\n");
+
+  sendMessage(
+    `Create a personalized routine using only these selected products:\n${productContext}`,
+    true
+  );
+});
+
 /* Filter and display products when category changes */
 categoryFilter.addEventListener("change", async (e) => {
   // Show a loading message while the product data is being loaded
@@ -157,9 +228,10 @@ categoryFilter.addEventListener("change", async (e) => {
   displayProducts(filteredProducts);
 });
 
-/* Chat form submission handler - placeholder for OpenAI integration */
+/* Chat form submission handler */
 chatForm.addEventListener("submit", (e) => {
   e.preventDefault();
 
-  chatWindow.innerHTML = "Connect to the OpenAI API for a response!";
+  sendMessage(userInput.value);
+  userInput.value = "";
 });

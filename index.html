@@ -56,7 +56,7 @@
           </button>
         </div>
         <div id="selectedProductsList"></div>
-        <button id="generateRoutine" class="generate-btn">
+        <button id="generateRoutine" class="generate-btn" disabled>
           <i class="fa-solid fa-wand-magic-sparkles"></i> Generate Routine
         </button>
       </div>
@@ -75,8 +75,9 @@
             placeholder="Ask me about products or routines…"
             autocomplete="off"
             required
+            disabled
           />
-          <button type="submit" id="sendBtn">
+          <button type="submit" id="sendBtn" disabled>
             <i class="fa-solid fa-paper-plane"></i>
             <span class="visually-hidden">Send</span>
           </button>
