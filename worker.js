@@ -34,9 +34,10 @@ export default {
 
 
     try {
-      // Read the messages array sent by script.js.
+      // Read the conversation and product catalog sent by script.js.
       const body = await request.json();
       const messages = body.messages;
+      const products = body.products;
       const apiKey = env.OPENAI_API_KEY;
       const apiUrl = "https://api.openai.com/v1/responses";
 
@@ -49,6 +50,17 @@ export default {
         );
       }
 
+      // Add the full product catalog as context for the OpenAI request.
+      const input = Array.isArray(products)
+        ? [
+            {
+              role: "system",
+              content: `Product catalog: ${JSON.stringify(products)}`,
+            },
+            ...messages,
+          ]
+        : messages;
+
       // Send the conversation to OpenAI using the secret API key.
       const openAiResponse = await fetch(apiUrl, {
         method: "POST",
@@ -57,13 +69,12 @@ export default {
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: "gpt-5.2",
-          intructions: systemMessage,
-          reasoning: {effort: medium},
+          model: "gpt-4.1",
+          instructions: systemMessage,
           store: false,
           tools: [{type: "web_search", search_context_size: "medium"}],
           max_output_tokens: 800,
-          input: messages,
+          input: input
         }),
       });
 

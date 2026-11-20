@@ -37,6 +37,13 @@ function displayProducts(products) {
 
 /* Filter and display products when category changes */
 categoryFilter.addEventListener("change", async (e) => {
+  // Show a loading message while the product data is being loaded
+  productsContainer.innerHTML = `
+    <div class="placeholder-message">
+      Loading products...
+    </div>
+  `;
+
   const products = await loadProducts();
   const selectedCategory = e.target.value;
 
