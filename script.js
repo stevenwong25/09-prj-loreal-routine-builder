@@ -17,6 +17,32 @@ const selectedProductsKey = "lorealSelectedProductIds";
 let isRequestInProgress = false;
 let routineReady = false;
 
+/* Add a message bubble to the text conversation */
+function addChatMessage(text, sender) {
+  const message = document.createElement("div");
+  message.className = `chat-message ${sender}-message`;
+
+  const bubble = document.createElement("div");
+  bubble.className = "chat-bubble";
+
+  if (sender === "assistant") {
+    bubble.innerHTML = formatResponse(text);
+  } else {
+    bubble.textContent = text;
+  }
+
+  message.appendChild(bubble);
+  chatWindow.appendChild(message);
+  chatWindow.scrollTop = chatWindow.scrollHeight;
+  return bubble;
+}
+
+/* Show the first assistant message when the page loads */
+addChatMessage(
+  "Select products and generate a routine to get started.",
+  "assistant"
+);
+
 /* Detect language and translation class changes, then adjust RTL layout */
 const rtlLanguages = ["ar", "dv", "fa", "he", "iw", "ps", "sd", "ur", "yi"];
 
@@ -32,8 +58,9 @@ function updatePageDirection() {
       ? "rtl"
       : "ltr";
 
-  htmlElement.dir = direction;
-  htmlElement.classList.toggle("translated-rtl", direction === "rtl");
+  if (htmlElement.dir !== direction) {
+    htmlElement.dir = direction;
+  }
 }
 
 updatePageDirection();
@@ -42,7 +69,7 @@ updatePageDirection();
 const directionObserver = new MutationObserver(updatePageDirection);
 directionObserver.observe(document.documentElement, {
   attributes: true,
-  attributeFilter: ["lang", "class", "dir"],
+  attributeFilter: ["lang", "class"],
 });
 
 // Keep chat disabled until a routine has been generated
@@ -337,17 +364,35 @@ function formatResponse(text) {
 async function sendMessage(
   message,
   unlockChatWhenFinished = false,
-  loadingMessage = "Thinking..."
+  loadingMessage = "Thinking...",
+  displayMessage = message,
+  resetChat = true
 ) {
   setBusyControls(true);
   messages.push({ role: "user", content: message });
-  chatWindow.innerHTML = loadingMessage;
+
+  let loadingBubble;
+
+  if (resetChat) {
+    // Reset the visible conversation and show the current user input first
+    chatWindow.innerHTML = "";
+    addChatMessage(displayMessage, "user");
+    loadingBubble = addChatMessage(loadingMessage, "assistant");
+  } else {
+    // Generate Routine replaces the startup bubble with the loading bubble
+    chatWindow.innerHTML = "";
+    loadingBubble = addChatMessage(loadingMessage, "assistant");
+  }
+  const responseLanguage = document.documentElement.lang || navigator.language || "en";
 
   try {
     const response = await fetch(workerUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({
+        messages,
+        language: responseLanguage,
+      }),
     });
     const data = await response.json();
 
@@ -368,11 +413,8 @@ async function sendMessage(
       "The AI did not return a response.";
     messages.push({ role: "assistant", content: reply });
 
-    // Display the AI response as text in the chat window
-    chatWindow.innerHTML = "";
-    const responseMessage = document.createElement("div");
-    responseMessage.innerHTML = formatResponse(reply);
-    chatWindow.appendChild(responseMessage);
+    // Replace the loading bubble with the AI response
+    loadingBubble.innerHTML = formatResponse(reply);
 
     if (unlockChatWhenFinished) {
       routineReady = true;
@@ -381,7 +423,7 @@ async function sendMessage(
     setBusyControls(false);
   } catch (error) {
     messages.pop();
-    chatWindow.innerHTML = `Error: ${error.message}`;
+    loadingBubble.innerHTML = formatResponse(`Error: ${error.message}`);
 
     if (unlockChatWhenFinished) {
       routineReady = false;
@@ -407,7 +449,9 @@ generateRoutineButton.addEventListener("click", () => {
   sendMessage(
     `Create a personalized routine using only these selected products:\n${productContext}`,
     true,
-    "Building your routine..."
+    "Building your routine...",
+    "",
+    false
   );
 });
 
@@ -450,7 +494,12 @@ chatForm.addEventListener("submit", (e) => {
 
 // Load products once and show all products on page load
 loadProducts().then(() => {
-  filterProducts();
+  // Keep the product list empty until the user selects a category or search
+  productsContainer.innerHTML = `
+    <div class="placeholder-message">
+      Select a category or search for products
+    </div>
+  `;
 }).catch((error) => {
   productsContainer.innerHTML = `
     <div class="placeholder-message">
