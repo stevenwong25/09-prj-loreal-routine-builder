@@ -1,5 +1,6 @@
 /* Get references to DOM elements */
 const categoryFilter = document.getElementById("categoryFilter");
+const productSearch = document.getElementById("productSearch");
 const productsContainer = document.getElementById("productsContainer");
 const selectedProductsList = document.getElementById("selectedProductsList");
 const clearSelectionButton = document.getElementById("clearSelection");
@@ -24,6 +25,7 @@ sendButton.disabled = true;
 function setBusyControls(isBusy) {
   isRequestInProgress = isBusy;
   categoryFilter.disabled = isBusy;
+  productSearch.disabled = isBusy;
   clearSelectionButton.disabled = isBusy;
   generateRoutineButton.disabled =
     isBusy || selectedProducts.length === 0;
@@ -49,6 +51,9 @@ productsContainer.innerHTML = `
 /* Load product data from JSON file */
 async function loadProducts() {
   const response = await fetch("products.json");
+  if (!response.ok) {
+    throw new Error("The product catalog could not be loaded.");
+  }
   const data = await response.json();
   allProducts = data.products;
 
@@ -146,12 +151,8 @@ function toggleSelectedProduct(productId) {
   saveSelectedProducts();
   displaySelectedProducts();
 
-  // Refresh the currently selected category
-  const selectedCategory = categoryFilter.value;
-  const filteredProducts = allProducts.filter(
-    (product) => product.category === selectedCategory
-  );
-  displayProducts(filteredProducts);
+  // Refresh with both the category and search filters
+  filterProducts();
 }
 
 /* Show selected products in the selected products container */
@@ -190,6 +191,29 @@ function displaySelectedProducts() {
   });
 }
 
+/* Filter products by category and search text */
+function filterProducts() {
+  const selectedCategory = categoryFilter.value;
+  const searchText = productSearch.value.trim().toLowerCase();
+
+  let filteredProducts =
+    selectedCategory === "all" || selectedCategory === ""
+      ? allProducts
+      : allProducts.filter(
+          (product) => product.category === selectedCategory
+        );
+
+  if (searchText) {
+    filteredProducts = filteredProducts.filter((product) =>
+      `${product.name} ${product.brand} ${product.category} ${product.description}`
+        .toLowerCase()
+        .includes(searchText)
+    );
+  }
+
+  displayProducts(filteredProducts);
+}
+
 /* Remove all products from the selected products list */
 clearSelectionButton.addEventListener("click", () => {
   if (isRequestInProgress) {
@@ -200,11 +224,7 @@ clearSelectionButton.addEventListener("click", () => {
   saveSelectedProducts();
   displaySelectedProducts();
 
-  const selectedCategory = categoryFilter.value;
-  const filteredProducts = allProducts.filter(
-    (product) => product.category === selectedCategory
-  );
-  displayProducts(filteredProducts);
+  filterProducts();
 });
 
 /* Format simple Markdown text for the chat response */
@@ -213,11 +233,18 @@ function formatResponse(text) {
     value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const formatInline = (value) => {
     let formatted = escapeHtml(value);
+    const markdownLinks = [];
 
-    // Convert Markdown-style links: [label](https://example.com)
+    // Protect Markdown links before converting raw URLs
     formatted = formatted.replace(
       /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
-      '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>'
+      (match, label, url) => {
+        const placeholder = `__LINK_${markdownLinks.length}__`;
+        markdownLinks.push(
+          `<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`
+        );
+        return placeholder;
+      }
     );
 
     // Convert raw http or https URLs into clickable links
@@ -230,6 +257,10 @@ function formatResponse(text) {
         return `${prefix}<a href="${cleanUrl}" target="_blank" rel="noopener noreferrer">${cleanUrl}</a>${ending}`;
       }
     );
+
+    markdownLinks.forEach((link, index) => {
+      formatted = formatted.replace(`__LINK_${index}__`, link);
+    });
 
     formatted = formatted.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
     formatted = formatted.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
@@ -353,28 +384,22 @@ generateRoutineButton.addEventListener("click", () => {
 });
 
 /* Filter and display products when category changes */
-categoryFilter.addEventListener("change", async (e) => {
+categoryFilter.addEventListener("change", () => {
   if (isRequestInProgress) {
     return;
   }
 
-  // Show a loading message while the product data is being loaded
-  productsContainer.innerHTML = `
-    <div class="placeholder-message">
-      Loading products...
-    </div>
-  `;
+  // The product data is already loaded, so apply the filters immediately
+  filterProducts();
+});
 
-  const products = await loadProducts();
-  const selectedCategory = e.target.value;
+/* Update results whenever the search text changes */
+productSearch.addEventListener("input", () => {
+  if (isRequestInProgress) {
+    return;
+  }
 
-  /* filter() creates a new array containing only products 
-     where the category matches what the user selected */
-  const filteredProducts = products.filter(
-    (product) => product.category === selectedCategory
-  );
-
-  displayProducts(filteredProducts);
+  filterProducts();
 });
 
 /* Chat form submission handler */
@@ -395,5 +420,13 @@ chatForm.addEventListener("submit", (e) => {
   userInput.value = "";
 });
 
-// Load products once so saved selections appear when the page is revisited
-loadProducts();
+// Load products once and show all products on page load
+loadProducts().then(() => {
+  filterProducts();
+}).catch((error) => {
+  productsContainer.innerHTML = `
+    <div class="placeholder-message">
+      ${error.message}
+    </div>
+  `;
+});

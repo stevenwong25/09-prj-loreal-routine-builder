@@ -40,17 +40,28 @@ body {
 .search-section {
   margin: 30px 0;
   display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
+.search-section input,
 .search-section select {
   width: 100%;
   padding: 16px;
   font-size: 18px;
-  border: 2px solid #000;
   border-radius: 8px;
-  cursor: pointer;
   background-color: white;
   font-weight: 500;
+}
+
+.search-section input {
+  cursor: text;
+  border: 1.5px solid #000;
+}
+
+.search-section select {
+  cursor: pointer;
+  border: 2px solid #000;
 }
 
 .search-section select:focus {
@@ -58,6 +69,12 @@ body {
   border-color: #666;
 }
 
+.search-section input:focus {
+  outline: none;
+  border-color: #666;
+}
+
+.search-section input:disabled,
 .search-section select:disabled {
   background: #eee;
   color: #777;
