@@ -162,18 +162,6 @@ body {
   justify-content: flex-end;
 }
 
-[dir="rtl"] .user-message .chat-bubble,
-.translated-rtl .user-message .chat-bubble {
-  border-bottom-right-radius: 18px;
-  border-bottom-left-radius: 4px;
-}
-
-[dir="rtl"] .assistant-message .chat-bubble,
-.translated-rtl .assistant-message .chat-bubble {
-  border-bottom-left-radius: 18px;
-  border-bottom-right-radius: 4px;
-}
-
 .chat-window ul,
 .chat-window ol {
   margin: 0 0 12px 24px;
