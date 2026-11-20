@@ -81,6 +81,23 @@ body {
   margin-bottom: 20px;
 }
 
+.chat-window p {
+  margin-bottom: 12px;
+}
+
+.chat-window ul,
+.chat-window ol {
+  margin: 0 0 12px 24px;
+}
+
+.chat-window strong {
+  font-weight: 700;
+}
+
+.chat-window em {
+  font-style: italic;
+}
+
 /* placeholder message */
 .placeholder-message {
   width: 100%;

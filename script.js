@@ -12,6 +12,7 @@ const selectedProducts = [];
 const messages = [];
 const workerUrl = "https://loreal-routine-bot.wsteven446.workers.dev/";
 let allProducts = [];
+const selectedProductsKey = "lorealSelectedProductIds";
 
 // Keep chat disabled until a routine has been generated
 userInput.disabled = true;
@@ -29,7 +30,32 @@ async function loadProducts() {
   const response = await fetch("products.json");
   const data = await response.json();
   allProducts = data.products;
+
+  // Restore selected products from the browser after the product data loads
+  let savedIds = [];
+  try {
+    savedIds = JSON.parse(
+      localStorage.getItem(selectedProductsKey) || "[]"
+    );
+  } catch (error) {
+    localStorage.removeItem(selectedProductsKey);
+  }
+  selectedProducts.length = 0;
+  savedIds.forEach((id) => {
+    const savedProduct = allProducts.find((product) => product.id === id);
+    if (savedProduct) {
+      selectedProducts.push(savedProduct);
+    }
+  });
+
+  displaySelectedProducts();
   return data.products;
+}
+
+/* Save selected product IDs so the selection survives a page reload */
+function saveSelectedProducts() {
+  const selectedIds = selectedProducts.map((product) => product.id);
+  localStorage.setItem(selectedProductsKey, JSON.stringify(selectedIds));
 }
 
 /* Create HTML for displaying product cards */
@@ -88,6 +114,7 @@ function toggleSelectedProduct(productId) {
     selectedProducts.splice(selectedIndex, 1);
   }
 
+  saveSelectedProducts();
   displaySelectedProducts();
 
   // Refresh the currently selected category
@@ -137,6 +164,7 @@ function displaySelectedProducts() {
 /* Remove all products from the selected products list */
 clearSelectionButton.addEventListener("click", () => {
   selectedProducts.length = 0;
+  saveSelectedProducts();
   displaySelectedProducts();
 
   const selectedCategory = categoryFilter.value;
@@ -145,6 +173,54 @@ clearSelectionButton.addEventListener("click", () => {
   );
   displayProducts(filteredProducts);
 });
+
+/* Format simple Markdown text for the chat response */
+function formatResponse(text) {
+  const escapeHtml = (value) =>
+    value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const formatEmphasis = (value) => {
+    let formatted = value.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+    formatted = formatted.replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+    return formatted;
+  };
+  const lines = text.split("\n");
+  const formattedLines = [];
+  let listType = null;
+
+  const closeList = () => {
+    if (listType) {
+      formattedLines.push(`</${listType}>`);
+      listType = null;
+    }
+  };
+
+  lines.forEach((line) => {
+    const bulletMatch = line.match(/^\s*[-*]\s+(.+)/);
+    const numberMatch = line.match(/^\s*\d+\.\s+(.+)/);
+
+    if (bulletMatch || numberMatch) {
+      const currentListType = bulletMatch ? "ul" : "ol";
+
+      if (listType !== currentListType) {
+        closeList();
+        formattedLines.push(`<${currentListType}>`);
+        listType = currentListType;
+      }
+
+      const itemText = bulletMatch ? bulletMatch[1] : numberMatch[1];
+      formattedLines.push(`<li>${formatEmphasis(escapeHtml(itemText))}</li>`);
+      return;
+    }
+
+    closeList();
+    if (line.trim()) {
+      formattedLines.push(`<p>${formatEmphasis(escapeHtml(line))}</p>`);
+    }
+  });
+
+  closeList();
+  return formattedLines.join("");
+}
 
 /* Send the conversation to the Cloudflare Worker */
 async function sendMessage(message, unlockChatWhenFinished = false) {
@@ -171,8 +247,8 @@ async function sendMessage(message, unlockChatWhenFinished = false) {
 
     // Display the AI response as text in the chat window
     chatWindow.innerHTML = "";
-    const responseMessage = document.createElement("p");
-    responseMessage.textContent = reply;
+    const responseMessage = document.createElement("div");
+    responseMessage.innerHTML = formatResponse(reply);
     chatWindow.appendChild(responseMessage);
 
     if (unlockChatWhenFinished) {
@@ -232,6 +308,15 @@ categoryFilter.addEventListener("change", async (e) => {
 chatForm.addEventListener("submit", (e) => {
   e.preventDefault();
 
-  sendMessage(userInput.value);
+  const message = userInput.value.trim();
+  if (!message) {
+    return;
+  }
+
+  // Send the user's message to the configured Worker URL
+  sendMessage(message);
   userInput.value = "";
 });
+
+// Load products once so saved selections appear when the page is revisited
+loadProducts();
