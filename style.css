@@ -56,7 +56,7 @@ body {
 
 .search-section input {
   cursor: text;
-  border: 1.5px solid #000;
+  border: 1px solid #000;
 }
 
 .search-section select {
@@ -119,6 +119,41 @@ body {
 
 .chat-window em {
   font-style: italic;
+}
+
+[dir="rtl"] .search-section input,
+[dir="rtl"] .search-section select,
+[dir="rtl"] .chat-form input,
+[dir="rtl"] .chat-window,
+[dir="rtl"] .product-card,
+[dir="rtl"] .selected-product-card {
+  text-align: right;
+  direction: rtl;
+}
+
+[dir="rtl"] .chat-form {
+  direction: rtl;
+}
+
+[dir="rtl"] .chat-window ul,
+[dir="rtl"] .chat-window ol {
+  margin: 0 24px 12px 0;
+}
+
+[dir="rtl"] .selected-products-header {
+  direction: rtl;
+}
+
+.translated-rtl .search-section input,
+.translated-rtl .search-section select,
+.translated-rtl .chat-form input,
+.translated-rtl .chat-window,
+.translated-rtl .product-card,
+.translated-rtl .selected-product-card,
+.translated-rtl .chat-form,
+.translated-rtl .selected-products-header {
+  direction: rtl;
+  text-align: right;
 }
 
 .chat-window a {
@@ -402,7 +437,7 @@ body {
 }
 
 .remove-product {
-  margin-left: auto;
+  margin-inline-start: auto;
   border: none;
   background: transparent;
   color: #d32f2f;

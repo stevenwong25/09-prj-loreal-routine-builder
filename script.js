@@ -17,6 +17,34 @@ const selectedProductsKey = "lorealSelectedProductIds";
 let isRequestInProgress = false;
 let routineReady = false;
 
+/* Detect language and translation class changes, then adjust RTL layout */
+const rtlLanguages = ["ar", "dv", "fa", "he", "iw", "ps", "sd", "ur", "yi"];
+
+function updatePageDirection() {
+  const htmlElement = document.documentElement;
+  const htmlLanguage = htmlElement.lang || navigator.language || "en";
+  const languageCode = htmlLanguage.toLowerCase().split("-")[0];
+  const hasTranslationRtlClass =
+    htmlElement.classList.contains("translated-rtl") ||
+    htmlElement.classList.contains("translated-trl");
+  const direction =
+    hasTranslationRtlClass || rtlLanguages.includes(languageCode)
+      ? "rtl"
+      : "ltr";
+
+  htmlElement.dir = direction;
+  htmlElement.classList.toggle("translated-rtl", direction === "rtl");
+}
+
+updatePageDirection();
+
+// Watch for HTML lang or translation class changes
+const directionObserver = new MutationObserver(updatePageDirection);
+directionObserver.observe(document.documentElement, {
+  attributes: true,
+  attributeFilter: ["lang", "class", "dir"],
+});
+
 // Keep chat disabled until a routine has been generated
 userInput.disabled = true;
 sendButton.disabled = true;
